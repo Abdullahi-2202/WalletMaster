@@ -62,8 +62,8 @@ export default function InsightsPage() {
   const savingInsights = getInsightsByType('saving');
   const investmentInsights = getInsightsByType('investment');
   
-  // If user not logged in, don't render anything
-  if (!user) return null;
+  // If user not logged in, return empty fragment
+  if (!user) return <></>;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">

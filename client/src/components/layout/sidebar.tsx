@@ -7,7 +7,7 @@ import {
   DollarSign, 
   Wallet, 
   Settings, 
-  BarChart, 
+  Bot, 
   PiggyBank,
   HelpCircle 
 } from "lucide-react";
@@ -30,24 +30,24 @@ const sidebarItems: SidebarItem[] = [
     icon: <CreditCard className="w-5 h-5" />,
   },
   {
-    name: "Budgets",
-    href: "/budgets",
-    icon: <PieChart className="w-5 h-5" />,
-  },
-  {
     name: "Transactions",
     href: "/transactions",
     icon: <DollarSign className="w-5 h-5" />,
   },
   {
-    name: "Savings",
-    href: "/savings",
+    name: "Budgets",
+    href: "/budgets",
+    icon: <PieChart className="w-5 h-5" />,
+  },
+  {
+    name: "Savings Goals",
+    href: "/savings-goals",
     icon: <PiggyBank className="w-5 h-5" />,
   },
   {
-    name: "Reports",
-    href: "/reports",
-    icon: <BarChart className="w-5 h-5" />,
+    name: "AI Insights",
+    href: "/insights",
+    icon: <Bot className="w-5 h-5" />,
   },
   {
     name: "Settings",

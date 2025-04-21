@@ -108,7 +108,7 @@ export default function Dashboard() {
     }
   };
 
-  if (!user) return null;
+  if (!user) return <></>;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
