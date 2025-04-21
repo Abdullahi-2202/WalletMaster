@@ -1,4 +1,4 @@
-import { Transaction, Category } from "@/types";
+import { TransactionType as Transaction, CategoryType as Category } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentMonthYear } from "@/lib/utils";
 import {
@@ -79,69 +79,66 @@ export function MonthlySpending({
   }
 
   return (
-    <Card className="shadow-sm mb-6">
-      <CardHeader className="px-5 pb-0">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-semibold">Monthly Spending</CardTitle>
-          <div className="text-sm text-gray-500">{getCurrentMonthYear()}</div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-5">
-        {chartData.length > 0 ? (
-          <>
-            <div className="h-[180px] w-full mb-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    hide={true}
-                  />
-                  <Tooltip 
-                    formatter={(value) => [`$${value}`, "Amount"]}
-                    labelStyle={{ color: "#111827" }}
-                    contentStyle={{ 
-                      backgroundColor: "white", 
-                      border: "1px solid #E5E7EB",
-                      borderRadius: "0.375rem",
-                      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
-                    }}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    radius={[4, 4, 0, 0]}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              {chartData.map((category, index) => (
-                <div key={index} className="flex items-center">
+    <>
+      {chartData.length > 0 ? (
+        <>
+          <div className="h-[180px] w-full mb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  hide={true}
+                />
+                <Tooltip 
+                  formatter={(value) => [`$${value}`, "Amount"]}
+                  labelStyle={{ color: "#111827" }}
+                  contentStyle={{ 
+                    backgroundColor: "white", 
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "0.75rem",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    padding: "8px 12px"
+                  }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[6, 6, 0, 0]}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          {/* Category legend with amounts */}
+          <div className="space-y-3">
+            {chartData.map((category, index) => (
+              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
                   <div 
                     className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: category.color }}
                   ></div>
-                  <span className="text-xs text-gray-600 truncate">{category.name}</span>
+                  <span className="text-sm font-medium">{category.name}</span>
                 </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="h-[180px] flex items-center justify-center">
-            <p className="text-gray-500 text-sm">No spending data available</p>
+                <span className="text-sm font-semibold">${category.value.toFixed(2)}</span>
+              </div>
+            ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </>
+      ) : (
+        <div className="h-[180px] flex items-center justify-center">
+          <p className="text-gray-500 text-sm">No spending data available</p>
+        </div>
+      )}
+    </>
   );
 }
 
