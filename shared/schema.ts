@@ -83,6 +83,7 @@ export const transactions = pgTable("transactions", {
   type: text("type").notNull(), // income, expense
   date: timestamp("date").notNull(),
   description: text("description"),
+  stripePaymentId: text("stripe_payment_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -96,6 +97,7 @@ export const insertTransactionSchema = createInsertSchema(transactions)
     type: true,
     date: true,
     description: true,
+    stripePaymentId: true,
   });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

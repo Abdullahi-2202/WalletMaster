@@ -423,16 +423,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Card not found" });
       }
       
-      // Create the charge
-      const charge = await createCharge(
+      // Create payment intent and confirm it immediately
+      const metadata = {
+        userId: userId.toString(),
+        cardId: cardId.toString(),
+        description: `Add funds to card ending in ${card.lastFour}`
+      };
+      
+      const paymentIntent = await paymentService.createPaymentIntent(
         amount, 
-        paymentMethodId, 
-        `Add funds to card ending in ${card.lastFour}`
+        'usd',
+        metadata
       );
       
-      // Update card balance
+      // Process the payment
+      const paymentResult = await paymentService.processPayment(
+        paymentIntent.id,
+        paymentMethodId
+      );
+      
+      if (!paymentResult.success) {
+        return res.status(400).json({ 
+          message: "Payment failed", 
+          error: paymentResult.error 
+        });
+      }
+      
+      // Update card balance with string value
       const updatedCard = await storage.updateCard(parseInt(cardId), {
-        balance: Number(card.balance) + Number(amount)
+        balance: (Number(card.balance) + Number(amount)).toString()
       });
       
       // Create a transaction record
@@ -476,13 +495,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if card has sufficient balance
-      if (card.balance < amount) {
+      if (Number(card.balance) < amount) {
         return res.status(400).json({ message: "Insufficient funds" });
       }
       
-      // Update card balance
+      // Create payment metadata
+      const metadata = {
+        userId: userId.toString(),
+        cardId: cardId.toString(),
+        utilityName,
+        type: 'utility_bill'
+      };
+      
+      // Create payment intent for utility bill
+      const paymentIntent = await paymentService.createPaymentIntent(
+        amount,
+        'usd',
+        metadata
+      );
+      
+      // Update card balance - convert to string to match schema
       const updatedCard = await storage.updateCard(parseInt(cardId), {
-        balance: Number(card.balance) - Number(amount)
+        balance: (Number(card.balance) - Number(amount)).toString()
       });
       
       // Create a transaction record
@@ -495,12 +529,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchant: utilityName,
         description: description || `Payment for ${utilityName}`,
         date: new Date(),
+        stripePaymentId: paymentIntent.id
       });
       
       res.json({
         success: true,
         card: updatedCard,
-        transaction
+        transaction,
+        paymentId: paymentIntent.id
       });
     } catch (error: any) {
       console.error("Pay utility error:", error);
@@ -526,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if card has sufficient balance
-      if (card.balance < amount) {
+      if (Number(card.balance) < amount) {
         return res.status(400).json({ message: "Insufficient funds" });
       }
       
@@ -537,9 +573,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Recipient not found" });
       }
       
-      // Update sender's card balance
+      // Create payment metadata for the transfer
+      const metadata = {
+        senderId: senderId.toString(),
+        recipientId: recipientId.toString(),
+        cardId: cardId.toString(),
+        transferType: 'user_to_user',
+      };
+      
+      // Create payment intent for the transfer
+      const paymentIntent = await paymentService.createPaymentIntent(
+        amount,
+        'usd',
+        metadata
+      );
+      
+      // Update sender's card balance (convert to string to match schema)
       const updatedSenderCard = await storage.updateCard(parseInt(cardId), {
-        balance: Number(card.balance) - Number(amount)
+        balance: (Number(card.balance) - Number(amount)).toString()
       });
       
       // Get recipient's default card
@@ -550,9 +601,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Recipient has no cards" });
       }
       
-      // Update recipient's card balance
+      // Update recipient's card balance (convert to string to match schema)
       const updatedRecipientCard = await storage.updateCard(defaultCard.id, {
-        balance: Number(defaultCard.balance) + Number(amount)
+        balance: (Number(defaultCard.balance) + Number(amount)).toString()
       });
       
       // Create sender's transaction record (expense)
@@ -565,6 +616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchant: `Transfer to ${recipient.firstName} ${recipient.lastName}`,
         description: description || 'Money transfer',
         date: new Date(),
+        stripePaymentId: paymentIntent.id
       });
       
       // Create recipient's transaction record (income)
@@ -577,6 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchant: `Transfer from ${req.user!.firstName} ${req.user!.lastName}`,
         description: description || 'Money transfer',
         date: new Date(),
+        stripePaymentId: paymentIntent.id
       });
       
       res.json({
@@ -584,7 +637,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderCard: updatedSenderCard,
         recipientCard: updatedRecipientCard,
         senderTransaction,
-        recipientTransaction
+        recipientTransaction,
+        paymentId: paymentIntent.id
       });
     } catch (error: any) {
       console.error("Transfer error:", error);
