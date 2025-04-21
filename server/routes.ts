@@ -5,6 +5,12 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { insertCardSchema, insertBudgetSchema, insertSavingsGoalSchema, insertAiMessageSchema, insertTransactionSchema } from "@shared/schema";
 import { getFinancialAdvice, generateFinancialInsights, analyzeSpendingPatterns } from "./openai";
+import { 
+  createPaymentIntent, 
+  createCustomer, 
+  createCharge, 
+  createTransfer 
+} from "./stripe";
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -343,6 +349,250 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ recommendations });
     } catch (error) {
       res.status(500).json({ message: "Failed to analyze spending patterns" });
+    }
+  });
+  
+  // Find user by email (for transfers)
+  app.get("/api/users/find", isAuthenticated, async (req, res) => {
+    try {
+      const { email } = req.query;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: "Email parameter is required" });
+      }
+      
+      // Don't allow transferring to yourself
+      if (req.user!.email === email) {
+        return res.status(400).json({ message: "Cannot transfer to yourself" });
+      }
+      
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Return limited user info for security
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to find user" });
+    }
+  });
+  
+  // Payment routes
+  
+  // Create a payment intent (for front-end Stripe Elements)
+  app.post("/api/payments/create-intent", isAuthenticated, async (req, res) => {
+    try {
+      const { amount, currency = 'usd', metadata = {} } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+      
+      // Add user ID to metadata for reference
+      metadata.userId = req.user!.id.toString();
+      
+      const paymentIntent = await createPaymentIntent(amount, currency, metadata);
+      
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        id: paymentIntent.id
+      });
+    } catch (error: any) {
+      console.error("Payment intent error:", error);
+      res.status(500).json({ message: error.message || "Failed to create payment intent" });
+    }
+  });
+  
+  // Add funds to card
+  app.post("/api/payments/add-funds", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { cardId, amount, paymentMethodId } = req.body;
+      
+      if (!cardId || !amount || amount <= 0 || !paymentMethodId) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get the card
+      const card = await storage.getCard(parseInt(cardId));
+      
+      if (!card || card.userId !== userId) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      
+      // Create the charge
+      const charge = await createCharge(
+        amount, 
+        paymentMethodId, 
+        `Add funds to card ending in ${card.lastFour}`
+      );
+      
+      // Update card balance
+      const updatedCard = await storage.updateCard(parseInt(cardId), {
+        balance: card.balance + amount
+      });
+      
+      // Create a transaction record
+      const transaction = await storage.createTransaction({
+        userId,
+        cardId: parseInt(cardId),
+        categoryId: 1, // Income category
+        amount,
+        type: 'income',
+        merchant: 'Wallet Master',
+        description: 'Add funds to card',
+        date: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        card: updatedCard,
+        transaction
+      });
+    } catch (error: any) {
+      console.error("Add funds error:", error);
+      res.status(500).json({ message: error.message || "Failed to add funds" });
+    }
+  });
+  
+  // Pay utility bill
+  app.post("/api/payments/pay-utility", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { cardId, amount, utilityName, utilityCategory, description } = req.body;
+      
+      if (!cardId || !amount || amount <= 0 || !utilityName) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get the card
+      const card = await storage.getCard(parseInt(cardId));
+      
+      if (!card || card.userId !== userId) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      
+      // Check if card has sufficient balance
+      if (card.balance < amount) {
+        return res.status(400).json({ message: "Insufficient funds" });
+      }
+      
+      // Update card balance
+      const updatedCard = await storage.updateCard(parseInt(cardId), {
+        balance: card.balance - amount
+      });
+      
+      // Create a transaction record
+      const transaction = await storage.createTransaction({
+        userId,
+        cardId: parseInt(cardId),
+        categoryId: utilityCategory || 2, // Default to "Bills" category if not specified
+        amount,
+        type: 'expense',
+        merchant: utilityName,
+        description: description || `Payment for ${utilityName}`,
+        date: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        card: updatedCard,
+        transaction
+      });
+    } catch (error: any) {
+      console.error("Pay utility error:", error);
+      res.status(500).json({ message: error.message || "Failed to pay utility bill" });
+    }
+  });
+  
+  // Transfer money to another user
+  app.post("/api/payments/transfer", isAuthenticated, async (req, res) => {
+    try {
+      const senderId = req.user!.id;
+      const { recipientId, cardId, amount, description } = req.body;
+      
+      if (!recipientId || !cardId || !amount || amount <= 0) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get the sender's card
+      const card = await storage.getCard(parseInt(cardId));
+      
+      if (!card || card.userId !== senderId) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      
+      // Check if card has sufficient balance
+      if (card.balance < amount) {
+        return res.status(400).json({ message: "Insufficient funds" });
+      }
+      
+      // Get the recipient
+      const recipient = await storage.getUser(parseInt(recipientId));
+      
+      if (!recipient) {
+        return res.status(404).json({ message: "Recipient not found" });
+      }
+      
+      // Update sender's card balance
+      const updatedSenderCard = await storage.updateCard(parseInt(cardId), {
+        balance: card.balance - amount
+      });
+      
+      // Get recipient's default card
+      const recipientCards = await storage.getCardsByUserId(parseInt(recipientId));
+      const defaultCard = recipientCards.find(card => card.isDefault) || recipientCards[0];
+      
+      if (!defaultCard) {
+        return res.status(404).json({ message: "Recipient has no cards" });
+      }
+      
+      // Update recipient's card balance
+      const updatedRecipientCard = await storage.updateCard(defaultCard.id, {
+        balance: defaultCard.balance + amount
+      });
+      
+      // Create sender's transaction record (expense)
+      const senderTransaction = await storage.createTransaction({
+        userId: senderId,
+        cardId: parseInt(cardId),
+        categoryId: 3, // Transfer category
+        amount,
+        type: 'expense',
+        merchant: `Transfer to ${recipient.firstName} ${recipient.lastName}`,
+        description: description || 'Money transfer',
+        date: new Date(),
+      });
+      
+      // Create recipient's transaction record (income)
+      const recipientTransaction = await storage.createTransaction({
+        userId: parseInt(recipientId),
+        cardId: defaultCard.id,
+        categoryId: 3, // Transfer category
+        amount,
+        type: 'income',
+        merchant: `Transfer from ${req.user!.firstName} ${req.user!.lastName}`,
+        description: description || 'Money transfer',
+        date: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        senderCard: updatedSenderCard,
+        recipientCard: updatedRecipientCard,
+        senderTransaction,
+        recipientTransaction
+      });
+    } catch (error: any) {
+      console.error("Transfer error:", error);
+      res.status(500).json({ message: error.message || "Failed to transfer money" });
     }
   });
 
