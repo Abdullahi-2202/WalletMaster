@@ -9,7 +9,8 @@ import {
   Settings, 
   Bot, 
   PiggyBank,
-  HelpCircle 
+  HelpCircle,
+  CreditCard as CreditCardIcon
 } from "lucide-react";
 
 type SidebarItem = {
@@ -33,6 +34,11 @@ const sidebarItems: SidebarItem[] = [
     name: "Transactions",
     href: "/transactions",
     icon: <DollarSign className="w-5 h-5" />,
+  },
+  {
+    name: "Payments",
+    href: "/payments",
+    icon: <Wallet className="w-5 h-5" />,
   },
   {
     name: "Budgets",

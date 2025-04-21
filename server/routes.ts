@@ -5,12 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { insertCardSchema, insertBudgetSchema, insertSavingsGoalSchema, insertAiMessageSchema, insertTransactionSchema } from "@shared/schema";
 import { getFinancialAdvice, generateFinancialInsights, analyzeSpendingPatterns } from "./openai";
-import { 
-  createPaymentIntent, 
-  createCustomer, 
-  createCharge, 
-  createTransfer 
-} from "./stripe";
+import { paymentService } from "./payment-service";
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -389,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a payment intent (for front-end Stripe Elements)
   app.post("/api/payments/create-intent", isAuthenticated, async (req, res) => {
     try {
-      const { amount, currency = 'usd', metadata = {} } = req.body;
+      const { amount, currency = 'usd', metadata = {}, paymentMethodTypes = ['card'] } = req.body;
       
       if (!amount || amount <= 0) {
         return res.status(400).json({ message: "Invalid amount" });
@@ -398,11 +393,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add user ID to metadata for reference
       metadata.userId = req.user!.id.toString();
       
-      const paymentIntent = await createPaymentIntent(amount, currency, metadata);
+      const result = await paymentService.createPaymentIntent(amount, currency, metadata);
       
       res.json({
-        clientSecret: paymentIntent.client_secret,
-        id: paymentIntent.id
+        clientSecret: result.clientSecret,
+        id: result.id,
+        status: result.status
       });
     } catch (error: any) {
       console.error("Payment intent error:", error);
