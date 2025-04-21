@@ -69,7 +69,6 @@ export class PaymentService {
       return {
         id: transfer.id,
         amount: transfer.amount / 100, // Convert back to dollars
-        status: transfer.status
       };
     } catch (error) {
       console.error('Error creating Stripe transfer:', error);

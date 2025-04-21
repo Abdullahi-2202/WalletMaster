@@ -5,7 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { insertCardSchema, insertBudgetSchema, insertSavingsGoalSchema, insertAiMessageSchema, insertTransactionSchema } from "@shared/schema";
 import { getFinancialAdvice, generateFinancialInsights, analyzeSpendingPatterns } from "./openai";
-import { paymentService } from "./payment-service";
+import { paymentRegistry } from "./payment-registry";
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -393,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add user ID to metadata for reference
       metadata.userId = req.user!.id.toString();
       
-      const result = await paymentService.createPaymentIntent(amount, currency, metadata);
+      const result = await paymentRegistry.createPaymentIntent(amount, currency, metadata);
       
       res.json({
         clientSecret: result.clientSecret,
@@ -430,7 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Add funds to card ending in ${card.lastFour}`
       };
       
-      const paymentIntent = await paymentService.createPaymentIntent(
+      const paymentIntent = await paymentRegistry.createPaymentIntent(
         amount, 
         'usd',
         metadata

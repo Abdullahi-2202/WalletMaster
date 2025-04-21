@@ -7,7 +7,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-31.basil',
+  apiVersion: '2023-10-16',
 });
 
 export class StripeGateway implements PaymentGateway {
@@ -24,7 +24,7 @@ export class StripeGateway implements PaymentGateway {
       
       return {
         id: paymentIntent.id,
-        clientSecret: paymentIntent.client_secret,
+        clientSecret: paymentIntent.client_secret || undefined,
         status: paymentIntent.status
       };
     } catch (error) {
@@ -116,7 +116,6 @@ export class StripeGateway implements PaymentGateway {
       return {
         id: transfer.id,
         amount: transfer.amount / 100, // Convert back to dollars
-        status: transfer.status
       };
     } catch (error) {
       console.error('Error creating Stripe transfer:', error);

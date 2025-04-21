@@ -21,16 +21,12 @@ export interface PaymentGateway {
   }>;
 }
 
-// Gateway Registry
+// Use only Stripe as per user's request
 import { StripeGateway } from './stripe-gateway';
-import { PayPalGateway } from './paypal-gateway';
-import { MockGateway } from './mock-gateway';
 
 // Available payment gateways
 const availableGateways: Record<string, PaymentGateway> = {
   stripe: new StripeGateway(),
-  paypal: new PayPalGateway(),
-  mock: new MockGateway() // For testing without real payment providers
 };
 
 // Get a specific gateway by ID
