@@ -1,27 +1,21 @@
-import { useState, useContext } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { ModalContext } from "@/App";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { insertCardSchema } from "@shared/schema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useContext } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import * as z from "zod";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,43 +23,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { CreditCard, X } from "lucide-react";
-import { getCardGradient } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { ModalContext } from "@/App";
+import { useToast } from "@/hooks/use-toast";
 
-// Updated form schema with validation
+// Form schema validation
 const cardFormSchema = z.object({
-  cardType: z.string().min(1, "Card type is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  cardNumber: z
-    .string()
-    .min(16, "Card number must be at least 16 digits")
-    .max(19, "Card number must be at most 19 digits")
-    .regex(/^[0-9]+$/, "Card number must contain only digits"),
-  expiryDate: z
-    .string()
-    .regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, "Expiry date must be in MM/YY format"),
-  balance: z.coerce
-    .number()
-    .min(0, "Balance must be a positive number"),
+  bankName: z.string().min(2, { message: "Bank name is required" }),
+  cardType: z.string().min(1, { message: "Card type is required" }),
+  cardNumber: z.string()
+    .min(16, { message: "Card number must be at least 16 characters" })
+    .max(19, { message: "Card number must not exceed 19 characters" }),
+  expiryDate: z.string().min(5, { message: "Valid expiry date is required" }),
+  balance: z.coerce.number().min(0, { message: "Balance must be a positive number" }),
   cardColor: z.string().optional(),
   isDefault: z.boolean().default(false),
 });
 
 type CardFormValues = z.infer<typeof cardFormSchema>;
 
+// Available card colors
+const cardColors = [
+  { name: "Blue", value: "blue" },
+  { name: "Purple", value: "purple" },
+  { name: "Green", value: "green" },
+  { name: "Red", value: "red" },
+  { name: "Orange", value: "orange" },
+  { name: "Teal", value: "teal" },
+  { name: "Gray", value: "gray" },
+];
+
 export function AddCardModal() {
   const { setActiveModal } = useContext(ModalContext);
   const { toast } = useToast();
-  const [cardPreviewColor, setCardPreviewColor] = useState("blue");
-
-  // Form setup
+  
+  // Set up form with default values
   const form = useForm<CardFormValues>({
     resolver: zodResolver(cardFormSchema),
     defaultValues: {
-      cardType: "",
       bankName: "",
+      cardType: "",
       cardNumber: "",
       expiryDate: "",
       balance: 0,
@@ -73,27 +72,27 @@ export function AddCardModal() {
       isDefault: false,
     },
   });
-
-  // Watch card number to format in preview
-  const cardNumber = form.watch("cardNumber");
-  const formattedCardNumber = cardNumber
-    ? `•••• •••• •••• ${cardNumber.slice(-4)}`
-    : "•••• •••• •••• ••••";
-
-  // Add Card Mutation
+  
+  // Create mutation for adding a card
   const addCardMutation = useMutation({
     mutationFn: async (data: CardFormValues) => {
-      const res = await apiRequest("POST", "/api/cards", {
+      // Convert card number to last four digits
+      const lastFour = data.cardNumber.slice(-4);
+      
+      const payload = {
         ...data,
-        lastFour: data.cardNumber.slice(-4),
-      });
+        lastFour,
+      };
+      
+      const res = await apiRequest("POST", "/api/cards", payload);
       return await res.json();
     },
     onSuccess: () => {
       toast({
         title: "Card Added",
-        description: "Your card has been successfully added.",
+        description: "Your card was successfully added",
       });
+      
       queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
       setActiveModal(null);
     },
@@ -105,63 +104,30 @@ export function AddCardModal() {
       });
     },
   });
-
+  
   // Handle form submission
   const onSubmit = (data: CardFormValues) => {
     addCardMutation.mutate(data);
   };
-
+  
+  // Handle close
+  const handleClose = () => {
+    setActiveModal(null);
+  };
+  
   return (
-    <Dialog open={true} onOpenChange={() => setActiveModal(null)}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center">
-            <CreditCard className="mr-2 h-5 w-5" />
-            Add New Card
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Card Preview */}
-        <div className={`rounded-xl p-4 flex flex-col justify-between h-44 bg-gradient-to-r ${getCardGradient(cardPreviewColor)} text-white mb-4 shadow-sm`}>
-          <div className="flex justify-between">
-            <div className="text-lg font-semibold">
-              {form.watch("bankName") || "Bank Name"}
-            </div>
-            <div>
-              {form.watch("cardType") === "visa" && <i className="fab fa-cc-visa text-2xl"></i>}
-              {form.watch("cardType") === "mastercard" && <i className="fab fa-cc-mastercard text-2xl"></i>}
-              {form.watch("cardType") === "amex" && <i className="fab fa-cc-amex text-2xl"></i>}
-              {form.watch("cardType") === "discover" && <i className="fab fa-cc-discover text-2xl"></i>}
-              {!form.watch("cardType") && <i className="fas fa-credit-card text-2xl"></i>}
-            </div>
-          </div>
-          
-          <div>
-            <div className="text-sm opacity-80 mb-1">Card Number</div>
-            <div className="font-medium">{formattedCardNumber}</div>
-          </div>
-          
-          <div className="flex justify-between">
-            <div>
-              <div className="text-sm opacity-80">Valid Thru</div>
-              <div className="font-medium">{form.watch("expiryDate") || "MM/YY"}</div>
-            </div>
-            <div>
-              <div className="text-sm opacity-80">CVV</div>
-              <div className="font-medium">•••</div>
-            </div>
-            <div>
-              <div className="text-sm opacity-80">Balance</div>
-              <div className="font-medium">
-                ${form.watch("balance")?.toFixed(2) || "0.00"}
-              </div>
-            </div>
-          </div>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-white rounded-lg overflow-hidden">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-xl font-semibold">Add New Card</h2>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        
+        <div className="p-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="bankName"
@@ -169,26 +135,26 @@ export function AddCardModal() {
                   <FormItem>
                     <FormLabel>Bank Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Chase Bank" {...field} />
+                      <Input placeholder="Enter bank name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="cardType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Card Type</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
+                    <Select 
+                      onValueChange={field.onChange} 
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder="Select card type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -202,27 +168,28 @@ export function AddCardModal() {
                   </FormItem>
                 )}
               />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="cardNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Card Number</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="1234 5678 9012 3456" 
-                      {...field} 
-                      maxLength={19}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
+              
+              <FormField
+                control={form.control}
+                name="cardNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Card Number</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="•••• •••• •••• ••••" 
+                        {...field} 
+                        maxLength={19}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      This will be stored securely. Only the last 4 digits will be displayed.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <FormField
                 control={form.control}
                 name="expiryDate"
@@ -230,76 +197,103 @@ export function AddCardModal() {
                   <FormItem>
                     <FormLabel>Expiry Date</FormLabel>
                     <FormControl>
-                      <Input placeholder="MM/YY" {...field} />
+                      <Input placeholder="MM/YY" {...field} maxLength={5} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="balance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Balance</FormLabel>
+                    <FormLabel>Current Balance</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        step="0.01"
-                        {...field}
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        min="0"
+                        placeholder="0.00" 
+                        {...field} 
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="cardColor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Card Color</FormLabel>
-                  <div className="flex space-x-2">
-                    {["blue", "green", "purple", "orange", "red", "pink"].map((color) => (
-                      <div
-                        key={color}
-                        className={`w-8 h-8 rounded-full cursor-pointer ${
-                          field.value === color ? "ring-2 ring-offset-2 ring-primary" : ""
-                        } bg-gradient-to-r ${getCardGradient(color)}`}
-                        onClick={() => {
-                          field.onChange(color);
-                          setCardPreviewColor(color);
-                        }}
+              
+              <FormField
+                control={form.control}
+                name="cardColor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Card Color</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select card color" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {cardColors.map((color) => (
+                          <SelectItem key={color.value} value={color.value}>
+                            <div className="flex items-center">
+                              <div 
+                                className="w-4 h-4 rounded-full mr-2" 
+                                style={{ backgroundColor: color.value }}
+                              ></div>
+                              {color.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="isDefault"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Set as Default</FormLabel>
+                      <FormDescription>
+                        Make this your default payment card?
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
                       />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setActiveModal(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={addCardMutation.isPending}
-              >
-                {addCardMutation.isPending ? "Adding Card..." : "Add Card"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <div className="pt-4 flex justify-end space-x-2">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={addCardMutation.isPending}
+                >
+                  {addCardMutation.isPending ? "Adding..." : "Add Card"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </Card>
+    </div>
   );
 }

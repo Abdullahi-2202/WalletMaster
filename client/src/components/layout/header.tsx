@@ -1,94 +1,166 @@
+import { useState, useContext } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useRef, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getUserInitials } from "@/lib/utils";
-import { ProfileDropdown } from "@/components/ui/profile-dropdown";
-import { Notifications } from "@/components/ui/notifications";
-import { Bell } from "lucide-react";
+import { Bell, MessageSquare, Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ModalContext } from "@/App";
 import { Link } from "wouter";
 
 export function Header() {
-  const { user } = useAuth();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
+  const { user, logoutMutation } = useAuth();
+  const { setActiveModal } = useContext(ModalContext);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close menus when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setShowProfileMenu(false);
-      }
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-    }
-    
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Toggle profile menu
-  const handleProfileClick = () => {
-    setShowProfileMenu(!showProfileMenu);
-    setShowNotifications(false);
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
 
-  // Toggle notifications
-  const handleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    setShowProfileMenu(false);
+  const handleOpenChatbot = () => {
+    setActiveModal("chatbot");
   };
 
-  if (!user) return null;
+  if (!user) return <></>;
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <Link href="/">
-              <a className="flex items-center space-x-1 text-xl font-semibold">
-                <span className="text-primary">Wallet</span>
-                <span className="text-gray-800">Master</span>
-              </a>
-            </Link>
-          </div>
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
+        {/* Mobile menu button */}
+        <div className="md:hidden">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+
+        {/* Logo - visible only on mobile */}
+        <div className="md:hidden">
+          <Link href="/">
+            <a className="flex items-center space-x-1 text-xl font-semibold">
+              <span className="text-primary">Wallet</span>
+              <span className="text-gray-800">Master</span>
+            </a>
+          </Link>
+        </div>
+        
+        {/* Right side navigation */}
+        <div className="flex items-center gap-3 ml-auto">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="hidden sm:flex relative"
+            onClick={handleOpenChatbot}
+          >
+            <MessageSquare className="h-5 w-5" />
+          </Button>
           
-          <div className="flex items-center space-x-4">
-            <div className="relative" ref={notificationsRef}>
-              <button
-                className="p-2 rounded-full text-gray-600 hover:bg-gray-100 focus:outline-none relative"
-                onClick={handleNotifications}
-              >
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-              </button>
-              
-              {showNotifications && <Notifications />}
-            </div>
-            
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                className="flex items-center bg-gray-50 rounded-full p-1 focus:outline-none"
-                onClick={handleProfileClick}
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.profileImage || ""} />
-                  <AvatarFallback className="bg-primary text-white">
-                    {getUserInitials(user.firstName, user.lastName)}
-                  </AvatarFallback>
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar>
+                  {user.profileImage ? (
+                    <AvatarImage src={user.profileImage} alt={user.firstName} />
+                  ) : (
+                    <AvatarFallback>
+                      {getUserInitials(user.firstName, user.lastName)}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
-              </button>
-              
-              {showProfileMenu && <ProfileDropdown />}
-            </div>
-          </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="font-medium">{user.firstName} {user.lastName}</span>
+                  <span className="text-xs text-gray-500 mt-1">{user.email}</span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <a className="cursor-pointer w-full">
+                    Profile Settings
+                  </a>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings">
+                  <a className="cursor-pointer w-full">
+                    Account Settings
+                  </a>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+      
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-gray-200 pb-3">
+          <nav className="px-4">
+            <ul className="space-y-2">
+              <li>
+                <Link href="/">
+                  <a className="flex items-center py-2 text-gray-700 hover:text-primary">
+                    <span>Dashboard</span>
+                  </a>
+                </Link>
+              </li>
+              <li>
+                <Link href="/insights">
+                  <a className="flex items-center py-2 text-gray-700 hover:text-primary">
+                    <span>AI Insights</span>
+                  </a>
+                </Link>
+              </li>
+              <li>
+                <Button 
+                  variant="ghost"
+                  className="flex w-full justify-start p-2 text-gray-700 hover:text-primary hover:bg-transparent"
+                  onClick={handleOpenChatbot}
+                >
+                  <span>Financial Assistant</span>
+                </Button>
+              </li>
+              <li>
+                <Link href="/settings">
+                  <a className="flex items-center py-2 text-gray-700 hover:text-primary">
+                    <span>Settings</span>
+                  </a>
+                </Link>
+              </li>
+              <li>
+                <Link href="/help">
+                  <a className="flex items-center py-2 text-gray-700 hover:text-primary">
+                    <span>Help & Support</span>
+                  </a>
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
