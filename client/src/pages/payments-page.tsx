@@ -76,7 +76,7 @@ function UtilityPaymentForm() {
   });
   
   // Fetch categories
-  const { data: categories, isLoading: isLoadingCategories } = useQuery({
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<any[]>({
     queryKey: ["/api/categories"],
     staleTime: 30000,
   });
@@ -227,7 +227,7 @@ function UtilityPaymentForm() {
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {categories?.map((category) => (
+                {categories.map((category: { id: number; name: string }) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
                     {category.name}
                   </SelectItem>

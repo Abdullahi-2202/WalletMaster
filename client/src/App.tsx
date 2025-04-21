@@ -11,6 +11,7 @@ import BudgetsPage from "@/pages/budgets-page";
 import SavingsGoalsPage from "@/pages/savings-goals-page";
 import CardsPage from "@/pages/cards-page";
 import InsightsPage from "@/pages/insights-page";
+import PaymentsPage from "@/pages/payments-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { useState, createContext } from "react";
@@ -34,6 +35,7 @@ function Router() {
       <ProtectedRoute path="/savings-goals" component={SavingsGoalsPage} />
       <ProtectedRoute path="/cards" component={CardsPage} />
       <ProtectedRoute path="/insights" component={InsightsPage} />
+      <ProtectedRoute path="/payments" component={PaymentsPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

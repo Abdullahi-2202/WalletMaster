@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update card balance
       const updatedCard = await storage.updateCard(parseInt(cardId), {
-        balance: card.balance + amount
+        balance: Number(card.balance) + Number(amount)
       });
       
       // Create a transaction record
@@ -486,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update card balance
       const updatedCard = await storage.updateCard(parseInt(cardId), {
-        balance: card.balance - amount
+        balance: Number(card.balance) - Number(amount)
       });
       
       // Create a transaction record
@@ -543,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update sender's card balance
       const updatedSenderCard = await storage.updateCard(parseInt(cardId), {
-        balance: card.balance - amount
+        balance: Number(card.balance) - Number(amount)
       });
       
       // Get recipient's default card
@@ -556,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update recipient's card balance
       const updatedRecipientCard = await storage.updateCard(defaultCard.id, {
-        balance: defaultCard.balance + amount
+        balance: Number(defaultCard.balance) + Number(amount)
       });
       
       // Create sender's transaction record (expense)
