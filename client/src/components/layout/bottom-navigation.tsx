@@ -6,7 +6,8 @@ import {
   PieChart, 
   DollarSign, 
   PiggyBank,
-  Bot
+  Bot,
+  Wallet
 } from "lucide-react";
 
 type NavItem = {
@@ -27,6 +28,11 @@ const navigationItems: NavItem[] = [
     icon: <CreditCard className="w-5 h-5" />,
   },
   {
+    name: "Payments",
+    href: "/payments",
+    icon: <Wallet className="w-5 h-5" />,
+  },
+  {
     name: "Transactions",
     href: "/transactions",
     icon: <DollarSign className="w-5 h-5" />,
@@ -35,11 +41,6 @@ const navigationItems: NavItem[] = [
     name: "Budgets",
     href: "/budgets",
     icon: <PieChart className="w-5 h-5" />,
-  },
-  {
-    name: "Savings",
-    href: "/savings-goals",
-    icon: <PiggyBank className="w-5 h-5" />,
   }
 ];
 

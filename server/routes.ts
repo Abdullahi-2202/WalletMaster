@@ -437,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Process the payment
-      const paymentResult = await paymentService.processPayment(
+      const paymentResult = await paymentRegistry.processPayment(
         paymentIntent.id,
         paymentMethodId
       );
@@ -508,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Create payment intent for utility bill
-      const paymentIntent = await paymentService.createPaymentIntent(
+      const paymentIntent = await paymentRegistry.createPaymentIntent(
         amount,
         'usd',
         metadata
@@ -582,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Create payment intent for the transfer
-      const paymentIntent = await paymentService.createPaymentIntent(
+      const paymentIntent = await paymentRegistry.createPaymentIntent(
         amount,
         'usd',
         metadata
