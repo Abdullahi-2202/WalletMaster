@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wallet Master</string>
+    <string name="title_activity_main">Wallet Master</string>
+    <string name="package_name">com.e.walletmaster</string>
+    <string name="custom_url_scheme">com.e.walletmaster</string>
+</resources>

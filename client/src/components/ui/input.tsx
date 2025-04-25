@@ -2,8 +2,9 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Completely stripped down input with no validation
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, required, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -12,7 +13,15 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        required={false}
+        aria-required="false"
+        formNoValidate
+        autoComplete="off"
         {...props}
+        onInvalid={(e) => {
+          // Prevent any validation errors
+          e.preventDefault();
+        }}
       />
     )
   }

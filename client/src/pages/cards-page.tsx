@@ -29,7 +29,9 @@ export default function CardsPage() {
   });
   
   // Calculate total balance
-  const totalBalance = cards.reduce((sum, card) => sum + Number(card.balance), 0);
+  const totalBalance = Array.isArray(cards)
+    ? cards.reduce((sum, card) => sum + Number(card.balance), 0)
+    : 0;
   
   // Handle opening the add card modal
   const handleAddCard = () => {
@@ -71,7 +73,7 @@ export default function CardsPage() {
                   {isLoading ? (
                     <Skeleton className="h-4 w-24 mx-auto" />
                   ) : (
-                    `Across ${cards.length} Card${cards.length !== 1 ? 's' : ''}`
+                    `Across ${Array.isArray(cards) ? cards.length : 0} Card${Array.isArray(cards) && cards.length !== 1 ? 's' : ''}`
                   )}
                 </div>
               </div>
@@ -92,7 +94,7 @@ export default function CardsPage() {
                   </Card>
                 ))}
               </div>
-            ) : cards.length === 0 ? (
+            ) : !Array.isArray(cards) || cards.length === 0 ? (
               <Card className="shadow-sm">
                 <CardContent className="p-10 text-center">
                   <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
